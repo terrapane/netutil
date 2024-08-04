@@ -270,6 +270,9 @@ DataBuffer::~DataBuffer()
  */
 DataBuffer &DataBuffer::operator=(const DataBuffer &other)
 {
+    // If assigning to self, just return this
+    if (this == &other) return *this;
+
     // If this object does not own its buffer or the buffer is not the same
     // size as the other buffer, allocate memory for this DataBuffer
     if (!owns_buffer || (buffer_size != other.buffer_size))
@@ -910,7 +913,7 @@ void DataBuffer::SetValue(const std::span<const std::uint8_t> value,
                           std::size_t offset)
 {
     // If there is nothing to write, just return
-    if (value.size() == 0) return;
+    if (value.empty()) return;
 
     // Ensure this operation will not write beyond the buffer
     if ((offset + value.size()) > buffer_size)
@@ -1381,7 +1384,7 @@ void DataBuffer::GetValue(std::span<std::uint8_t> value,
                           std::size_t offset) const
 {
     // If there is nothing to read, just return
-    if (value.size() == 0) return;
+    if (value.empty()) return;
 
     // Ensure this operation will not read beyond the buffer
     if ((offset + value.size()) > buffer_size)
@@ -1422,7 +1425,7 @@ void DataBuffer::GetValue(std::span<std::uint8_t> value,
 void DataBuffer::GetValue(std::span<char> value, std::size_t offset) const
 {
     // If there is nothing to read, just return
-    if (value.size() == 0) return;
+    if (value.empty()) return;
 
     // Ensure this operation will not read beyond the buffer
     if ((offset + value.size()) > buffer_size)
@@ -1775,7 +1778,7 @@ std::size_t DataBuffer::GetValue(VarUint64_t &value, std::size_t offset) const
     value = 0;
 
     // Read octets until we find the last one having a 0 MSb
-    while (octet & 0x80)
+    while ((octet & 0x80) != 0)
     {
         // A 64-bits value should never require more than 10 octets
         if (++total_octets == 11)
@@ -1844,10 +1847,10 @@ std::size_t DataBuffer::GetValue(VarInt64_t &value, std::size_t offset) const
     }
 
     // Determine the sign of the number by inspecting the leading sign bit
-    value = (buffer[offset] & 0x40) ? -1 : 0;
+    value = ((buffer[offset] & 0x40) != 0) ? -1 : 0;
 
     // Read octets until we find the last one having a 0 MSb
-    while (octet & 0x80)
+    while ((octet & 0x80) != 0)
     {
         // A 64-bits value should never require more than 10 octets
         if (++total_octets == 11)
@@ -2651,7 +2654,7 @@ std::size_t DataBuffer::ReadValue(VarInt64_t &value)
  *  Comments:
  *      None.
  */
-std::size_t DataBuffer::VarUintSize(const VarUint64_t &value) const
+std::size_t DataBuffer::VarUintSize(const VarUint64_t &value)
 {
     return BitUtil::FindMSb(value) / 7 + 1;
 }
@@ -2674,7 +2677,7 @@ std::size_t DataBuffer::VarUintSize(const VarUint64_t &value) const
  *  Comments:
  *      None.
  */
-std::size_t DataBuffer::VarIntSize(const VarInt64_t &value) const
+std::size_t DataBuffer::VarIntSize(const VarInt64_t &value)
 {
     return (BitUtil::FindMSb(value) + 1) / 7 + 1;
 }
@@ -2722,10 +2725,10 @@ std::ostream &operator<<(std::ostream &o, const DataBuffer &data_buffer)
         }
 
         // Produce the hex output for this octet
-        oss << " " << std::setw(2) << unsigned(octet);
+        oss << " " << std::setw(2) << static_cast<unsigned>(octet);
 
         // Add the ASCII form to the character map
-        ascii_map += (std::isprint(char(octet)) ? char(octet) : '.');
+        ascii_map += ((std::isprint(octet) != 0) ? static_cast<char>(octet) : '.');
 
         // Produce an output line when it is complete
         if ((++octet_counter % 16) == 0)

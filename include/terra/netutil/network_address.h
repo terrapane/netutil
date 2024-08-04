@@ -77,7 +77,7 @@ class NetworkAddress
 
         NetworkAddressType GetAddressType() const;
         static std::string GetAddressTypeString(NetworkAddressType type);
-        std::string GetAddressTypeString();
+        std::string GetAddressTypeString() const;
 
         void ClearAddress();
         bool Empty() const;

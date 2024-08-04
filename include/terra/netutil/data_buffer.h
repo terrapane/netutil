@@ -279,8 +279,8 @@ class DataBuffer
             return length;
         }
 
-        std::size_t VarUintSize(const VarUint64_t &value) const;
-        std::size_t VarIntSize(const VarInt64_t &value) const;
+        static std::size_t VarUintSize(const VarUint64_t &value);
+        static std::size_t VarIntSize(const VarInt64_t &value);
 
         // Streaming operators that call function AppendValue / ReadValue
         template<typename T>

@@ -198,6 +198,9 @@ NetworkAddress::NetworkAddress(const NetworkAddress &&other) noexcept :
  */
 NetworkAddress& NetworkAddress::operator=(const NetworkAddress& other) noexcept
 {
+    // If assigning to self, just return this
+    if (this == &other) return *this;
+
     // Copy the address data from the other object
     std::memcpy(&address_storage.ss,
                 &other.address_storage,
@@ -225,6 +228,9 @@ NetworkAddress& NetworkAddress::operator=(const NetworkAddress& other) noexcept
  */
 NetworkAddress& NetworkAddress::operator=(NetworkAddress&& other) noexcept
 {
+    // If moving to self, just return this
+    if (this == &other) return *this;
+
     // Copy the address data from the other object
     std::memcpy(&address_storage.ss,
                 &other.address_storage,
@@ -667,7 +673,7 @@ std::string NetworkAddress::GetAddressTypeString(NetworkAddressType type)
  *  Comments:
  *      None.
  */
-std::string NetworkAddress::GetAddressTypeString()
+std::string NetworkAddress::GetAddressTypeString() const
 {
     return GetAddressTypeString(GetAddressType());
 }
@@ -753,10 +759,10 @@ bool NetworkAddress::operator==(const NetworkAddress &other) const
 
         case AF_INET:
             // Compare addresses and port components
-            if (((address_storage.sa4.sin_addr.s_addr ==
-                  other.address_storage.sa4.sin_addr.s_addr)) ||
-                ((address_storage.sa4.sin_port ==
-                  other.address_storage.sa4.sin_port)))
+            if ((address_storage.sa4.sin_addr.s_addr ==
+                 other.address_storage.sa4.sin_addr.s_addr) &&
+                (address_storage.sa4.sin_port ==
+                 other.address_storage.sa4.sin_port))
             {
                 result = true;
             }
@@ -764,9 +770,9 @@ bool NetworkAddress::operator==(const NetworkAddress &other) const
 
         case AF_INET6:
             // Compare addresses and port components
-            if ((!memcmp(&address_storage.sa6.sin6_addr.s6_addr,
-                         &other.address_storage.sa6.sin6_addr.s6_addr,
-                         sizeof(address_storage.sa6.sin6_addr.s6_addr))) &&
+            if ((memcmp(&address_storage.sa6.sin6_addr.s6_addr,
+                        &other.address_storage.sa6.sin6_addr.s6_addr,
+                        sizeof(address_storage.sa6.sin6_addr.s6_addr)) == 0) &&
                 (address_storage.sa6.sin6_port ==
                  other.address_storage.sa6.sin6_port))
             {

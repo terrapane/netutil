@@ -27,8 +27,11 @@
 namespace Terra::NetUtil
 {
 
-template<typename T,
-         typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
+// Define a concept for integral types to use with VariableInteger
+template <typename T>
+concept IntegralType = std::is_integral_v<T>;
+
+template <IntegralType T>
 class VariableInteger
 {
     public:
