@@ -1,5 +1,8 @@
 # Create the library
-add_library(netutil STATIC data_buffer.cpp network_address.cpp)
+add_library(netutil STATIC
+    data_buffer.cpp
+    varint_data_buffer.cpp
+    network_address.cpp)
 add_library(Terra::netutil ALIAS netutil)
 
 # Specify the internal and public include directories

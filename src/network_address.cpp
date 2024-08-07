@@ -279,9 +279,8 @@ bool NetworkAddress::AssignAddress(const std::string &address,
     }
 
     // Assume this is an IPv6 address
-    result = inet_pton(AF_INET6,
-                       address.c_str(),
-                       &address_storage.sa6.sin6_addr);
+    result =
+        inet_pton(AF_INET6, address.c_str(), &address_storage.sa6.sin6_addr);
 
     // If successful, set the address family and port
     if (result == 1)

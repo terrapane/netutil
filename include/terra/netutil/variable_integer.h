@@ -12,7 +12,7 @@
  *      This file defines variable-width integer types.  These types are
  *      either signed or unsigned integer values, the definition of which
  *      exists just to facilitate disambiguation of types when writing to or
- *      reading from the DataBuffer object.
+ *      reading from the VarIntDataBuffer object.
  *
  *  Portability Issues:
  *      None.

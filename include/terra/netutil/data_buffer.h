@@ -87,13 +87,12 @@
 #include <span>
 #include <ostream>
 #include <limits>
-#include "variable_integer.h"
 
 namespace Terra::NetUtil
 {
 
 // Define an exception that will be thrown if an attempt is made to access
-// memory outside the underlying buffer of memory
+// memory outside the underlying memory buffer
 class DataBufferException : public std::runtime_error
 {
     using std::runtime_error::runtime_error;
@@ -111,7 +110,7 @@ class DataBuffer
                    std::size_t data_length = 0);
         DataBuffer(const DataBuffer &other);
         DataBuffer(DataBuffer &&other) noexcept;
-        ~DataBuffer();
+        virtual ~DataBuffer();
 
         DataBuffer &operator=(const DataBuffer &other);
         DataBuffer &operator=(DataBuffer &&other) noexcept;
@@ -155,18 +154,6 @@ class DataBuffer
         void SetValue(std::int64_t value, std::size_t offset);
         void SetValue(float value, std::size_t offset);
         void SetValue(double value, std::size_t offset);
-        std::size_t SetValue(const VarUint64_t &value, std::size_t offset);
-        std::size_t SetValue(const VarInt64_t &value, std::size_t offset);
-        template<VariableUnsignedInteger T>
-        std::size_t SetValue(const T &value, std::size_t offset)
-        {
-            return SetValue(VarUint64_t(value), offset);
-        }
-        template<VariableSignedInteger T>
-        std::size_t SetValue(const T &value, std::size_t offset)
-        {
-            return SetValue(VarInt64_t(value), offset);
-        }
 
         void GetValue(std::span<std::uint8_t> value, std::size_t offset) const;
         void GetValue(std::span<char> value, std::size_t offset) const;
@@ -180,36 +167,6 @@ class DataBuffer
         void GetValue(std::int64_t &value, std::size_t offset) const;
         void GetValue(float &value, std::size_t offset) const;
         void GetValue(double &value, std::size_t offset) const;
-        std::size_t GetValue(VarUint64_t &value, std::size_t offset) const;
-        std::size_t GetValue(VarInt64_t &value, std::size_t offset) const;
-        template<VariableUnsignedInteger T>
-        std::size_t GetValue(T &value, std::size_t offset) const
-        {
-            VarUint64_t read_value;
-            std::size_t length = GetValue(read_value, offset);
-            if (read_value > std::numeric_limits<typename T::value_type>::max())
-            {
-                throw DataBufferException("Read VarUint exceeds upper limit");
-            }
-            value = read_value;
-            return length;
-        }
-        template<VariableSignedInteger T>
-        std::size_t GetValue(T &value, std::size_t offset) const
-        {
-            VarInt64_t read_value;
-            std::size_t length = GetValue(read_value, offset);
-            if (read_value > std::numeric_limits<typename T::value_type>::max())
-            {
-                throw DataBufferException("Read VarInt exceeds upper limit");
-            }
-            if (read_value < std::numeric_limits<typename T::value_type>::min())
-            {
-                throw DataBufferException("Read VarInt exceeds lower limit");
-            }
-            value = read_value;
-            return length;
-        }
 
         void AppendValue(const std::span<const std::uint8_t> value);
         void AppendValue(const std::span<const char> value);
@@ -223,18 +180,6 @@ class DataBuffer
         void AppendValue(std::int64_t value);
         void AppendValue(float value);
         void AppendValue(double value);
-        std::size_t AppendValue(const VarUint64_t &value);
-        std::size_t AppendValue(const VarInt64_t &value);
-        template<VariableUnsignedInteger T>
-        std::size_t AppendValue(const T &value)
-        {
-            return AppendValue(VarUint64_t(value));
-        }
-        template<VariableSignedInteger T>
-        std::size_t AppendValue(const T &value)
-        {
-            return AppendValue(VarInt64_t(value));
-        }
 
         void ReadValue(std::span<std::uint8_t> value);
         void ReadValue(std::span<char> value);
@@ -248,49 +193,16 @@ class DataBuffer
         void ReadValue(std::int64_t &value);
         void ReadValue(float &value);
         void ReadValue(double &value);
-        std::size_t ReadValue(VarUint64_t &value);
-        std::size_t ReadValue(VarInt64_t &value);
-        template<VariableUnsignedInteger T>
-        std::size_t ReadValue(T &value)
-        {
-            VarUint64_t read_value;
-            std::size_t length = ReadValue(read_value);
-            if (read_value > std::numeric_limits<typename T::value_type>::max())
-            {
-                throw DataBufferException("Read VarUint exceeds upper limit");
-            }
-            value = read_value;
-            return length;
-        }
-        template<VariableSignedInteger T>
-        std::size_t ReadValue(T &value)
-        {
-            VarInt64_t read_value;
-            std::size_t length = ReadValue(read_value);
-            if (read_value > std::numeric_limits<typename T::value_type>::max())
-            {
-                throw DataBufferException("Read VarInt exceeds upper limit");
-            }
-            if (read_value < std::numeric_limits<typename T::value_type>::min())
-            {
-                throw DataBufferException("Read VarInt exceeds lower limit");
-            }
-            value = read_value;
-            return length;
-        }
-
-        static std::size_t VarUintSize(const VarUint64_t &value);
-        static std::size_t VarIntSize(const VarInt64_t &value);
 
         // Streaming operators that call function AppendValue / ReadValue
         template<typename T>
-        constexpr DataBuffer &operator<<(const T &value)
+        DataBuffer &operator<<(const T &value)
         {
             AppendValue(value);
             return *this;
         }
         template<typename T>
-        constexpr DataBuffer &operator>>(T &value)
+        DataBuffer &operator>>(T &value)
         {
             ReadValue(value);
             return *this;

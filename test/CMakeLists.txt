@@ -1,3 +1,4 @@
 add_subdirectory(data_buffer)
 add_subdirectory(network_address)
 add_subdirectory(variable_integer)
+add_subdirectory(varint_data_buffer)
