@@ -21,6 +21,8 @@
 
 #include <cstring>
 #include <array>
+#include <regex>
+#include <utility>
 #ifndef _WIN32
 #include <arpa/inet.h>
 #endif
@@ -28,6 +30,69 @@
 
 namespace Terra::NetUtil
 {
+
+namespace
+{
+
+/*
+ *  ExtractAddress()
+ *
+ *  Description:
+ *      This function will extract an IPv4 or IPv6 address from the string that
+ *      may contain a port number or, in the case of IPv6, contain
+ *      brackets around the address (e.g., "[fd88::1]").  A clean address is
+ *      required for inet_pton().  The purpose of this function is to accept
+ *      a string like "[fd88::1]:1234" and just return the "fd88::1" for
+ *      further consideration.
+ *
+ *  Parameters:
+ *      address [in]
+ *          A string containing the user-provided network address.
+ *
+ *  Returns:
+ *      Returns a pair indicating the address type and a string holding the
+ *      extracted address.  This string will not contain port information or
+ *      "[]" characters around IPv6 addresses.  If the function fails to
+ *      detect the type of address, the address type will be
+ *      NetworkAddressType::Unknown.
+ *
+ *  Comments:
+ *      The regular expressions do not capture the full complexity of either
+ *      address type, but it doesn't need to.  It just captures an address
+ *      that has the general form and discards a port number, if present.  The
+ *      inet_pton() function will ensure it is a proper address.
+ */
+std::pair<NetworkAddressType, std::string> ExtractAddress(
+                                                    const std::string &address)
+{
+    std::regex ipv4_regex(
+        R"(^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?\s*$)");
+    std::regex ipv6_bracketed_regex(R"(^\s*\[([a-fA-F0-9:]+)\](:\d+)?\s*$)");
+    std::regex ipv6_plain_regex(R"(^\s*([a-fA-F0-9:]+)\s*$)");
+    std::smatch match;
+
+    // Attempt to match the string against the IPv4 regular expression
+    if (std::regex_search(address, match, ipv4_regex))
+    {
+        return {NetworkAddressType::IPv4, match.str(1)};
+    }
+
+    // Attempt to match the string against the IPv6 regular expression with []
+    if (std::regex_search(address, match, ipv6_bracketed_regex))
+    {
+        return {NetworkAddressType::IPv6, match.str(1)};
+    }
+
+    // Attempt to match the string against the IPv4 regular expression w/o []
+    if (std::regex_search(address, match, ipv6_plain_regex))
+    {
+        return {NetworkAddressType::IPv6, match.str(1)};
+    }
+
+    return {NetworkAddressType::Unknown, {}};
+}
+
+} // namespace
 
 /*
  *  NetworkAddress::NetworkAddress()
@@ -75,6 +140,30 @@ NetworkAddress::NetworkAddress(const std::string &address, std::uint16_t port) :
     address_storage{}
 {
     AssignAddress(address, port);
+}
+
+/*
+ *  NetworkAddress::NetworkAddress()
+ *
+ *  Description:
+ *      Creates a NetworkAddress object having the given IP address in
+ *      the string. As no port is given, it defaults to 0.
+ *
+ *  Parameters:
+ *      address [in]
+ *          The IP address in textual format to assign to this object.
+ *
+ *  Returns:
+ *      Nothing.
+ *
+ *  Comments:
+ *      If the given IP address is invalid, assignment may fail.  One may
+ *      check the object's assignment by calling Empty() or using the bool
+ *      operator.
+ */
+NetworkAddress::NetworkAddress(const char *address) :
+    NetworkAddress(std::string(address))
+{
 }
 
 /*
@@ -262,25 +351,39 @@ NetworkAddress& NetworkAddress::operator=(NetworkAddress&& other) noexcept
 bool NetworkAddress::AssignAddress(const std::string &address,
                                    std::uint16_t port)
 {
-    int result{};
-
     // Wipe the currently stored address
     ClearAddress();
 
-    // Assume the string is IPv4
-    result = inet_pton(AF_INET, address.c_str(), &address_storage.sa4.sin_addr);
+    // Get a clean address string (discarding the [] on IPv6 addresses
+    // and port number information after a : or any other garbage in the
+    // string)
+    auto [address_type, clean_address] = ExtractAddress(address);
 
-    // If successful, set the address family and port
-    if (result == 1)
+    if (address_type == NetworkAddressType::Unknown) return false;
+
+    // Assign an IPv4 address
+    if (address_type == NetworkAddressType::IPv4)
     {
-        address_storage.sa4.sin_family = AF_INET;
-        address_storage.sa4.sin_port = htons(port);
-        return true;
+        // Assume the string is IPv4
+        int result = inet_pton(AF_INET,
+                               clean_address.c_str(),
+                               &address_storage.sa4.sin_addr);
+
+        // If successful, set the address family and port
+        if (result == 1)
+        {
+            address_storage.sa4.sin_family = AF_INET;
+            address_storage.sa4.sin_port = htons(port);
+            return true;
+        }
+
+        return false;
     }
 
-    // Assume this is an IPv6 address
-    result =
-        inet_pton(AF_INET6, address.c_str(), &address_storage.sa6.sin6_addr);
+    // Assign an IPv6 address
+    int result = inet_pton(AF_INET6,
+                           clean_address.c_str(),
+                           &address_storage.sa6.sin6_addr);
 
     // If successful, set the address family and port
     if (result == 1)

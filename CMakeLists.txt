@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # Define the Network Utilities project
 project(netutil
-        VERSION 1.0.0.0
+        VERSION 1.0.1.0
         DESCRIPTION "Network Utilities Library"
         LANGUAGES CXX)
 

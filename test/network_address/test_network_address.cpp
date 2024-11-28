@@ -202,6 +202,17 @@ STF_TEST(NetworkAddress, FriendlyAddressString4)
     STF_ASSERT_EQ(std::string("[fd88::beef]:1720"), oss.str());
 }
 
+STF_TEST(NetworkAddress, FriendlyAddressString5)
+{
+    std::ostringstream oss;
+
+    NetUtil::NetworkAddress address = "127.0.0.1";
+
+    oss << address;
+
+    STF_ASSERT_EQ(std::string("127.0.0.1"), oss.str());
+}
+
 STF_TEST(NetworkAddress, FriendlyAddressType)
 {
     std::ostringstream oss;
@@ -211,4 +222,84 @@ STF_TEST(NetworkAddress, FriendlyAddressType)
     oss << address1.GetAddressType();
 
     STF_ASSERT_EQ(std::string("IPv6"), oss.str());
+}
+
+STF_TEST(NetworkAddress, AddressReassignment)
+{
+    NetUtil::NetworkAddress address = "127.0.0.1";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("127.0.0.1"), oss.str());
+    }
+
+    address = "fd88::1";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("[fd88::1]"), oss.str());
+    }
+
+    address = "[fd88::2]";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("[fd88::2]"), oss.str());
+    }
+
+    // Port would get discarded
+    address = "[fd88::3]:1234";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("[fd88::3]"), oss.str());
+    }
+
+    address = "192.168.1.1";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("192.168.1.1"), oss.str());
+    }
+
+    // Port would get discarded
+    address = "192.168.1.2:1234";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("192.168.1.2"), oss.str());
+    }
+
+    // Whitespace would be ignored
+    address = "   192.168.1.3:1234  ";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("192.168.1.3"), oss.str());
+    }
+
+    // Whitespace would be ignored, port ignored
+    address = "   [FD88::4]:245  ";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("[fd88::4]"), oss.str());
+    }
+
+    // Whitespace would be ignored, port ignored
+    address = "   FD88::5    ";
+
+    {
+        std::ostringstream oss;
+        oss << address;
+        STF_ASSERT_EQ(std::string("[fd88::5]"), oss.str());
+    }
 }

@@ -50,6 +50,7 @@ class NetworkAddress
     public:
         NetworkAddress();
         NetworkAddress(const std::string &address, std::uint16_t port = 0);
+        NetworkAddress(const char *address);
         NetworkAddress(const struct sockaddr *address,
                        socklen_t address_length);
         NetworkAddress(const struct sockaddr_storage *address,

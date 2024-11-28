@@ -28,10 +28,8 @@ FetchContent_Declare(bitutil
     GIT_TAG        v1.0.0
     GIT_SHALLOW    true)
 
-# If not installing netutil, turn off installation for dependencies
-if(NOT netutil_INSTALL)
-    set(bitutil_INSTALL OFF)
-endif()
+# Install dependencies only if this library is installed
+set(bitutil_INSTALL ${netutil_INSTALL})
 
 # Make dependencies available
 FetchContent_MakeAvailable(bitutil)
