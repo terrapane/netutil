@@ -7,8 +7,6 @@ add_library(Terra::netutil ALIAS netutil)
 
 # Specify the internal and public include directories
 target_include_directories(netutil
-    PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 
