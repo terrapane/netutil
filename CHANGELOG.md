@@ -3,6 +3,7 @@
 v1.0.4
 
 - Addressed several clang-tidy nits
+- Corrected warnings when casting to a narrower integral type
 - Updated dependencies
 
 v1.0.3

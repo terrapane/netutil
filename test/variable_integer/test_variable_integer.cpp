@@ -46,15 +46,16 @@ STF_TEST(TestVariableInteger, Casting)
     k = i; // implicit conversion
     STF_ASSERT_EQ(125, k);
 
-    VarUint64_t l = 125;
-    std::uint32_t m;
-
-    m = l;
-    STF_ASSERT_EQ(125, m);
+    VarUint64_t l = 120;
+    std::uint32_t m = static_cast<std::uint32_t>(l);
+    STF_ASSERT_EQ(120, m);
 
     VarUint32_t n;
     n = i;
     STF_ASSERT_EQ(125, n);
+
+    n = static_cast<std::uint32_t>(l);
+    STF_ASSERT_EQ(120, n);
 }
 
 // Test boolean operator
