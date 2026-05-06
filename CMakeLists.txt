@@ -12,7 +12,7 @@ if(PROJECT_IS_TOP_LEVEL)
     option(netutil_BUILD_TESTS "Build Tests for the Network Utilities Library" ON)
 else()
     # Option to control whether tests are built
-    option(netutil_BUILDq_TESTS "Build Tests for the Network Utilities Library" OFF)
+    option(netutil_BUILD_TESTS "Build Tests for the Network Utilities Library" OFF)
 endif()
 
 # Option to control ability to install the library
