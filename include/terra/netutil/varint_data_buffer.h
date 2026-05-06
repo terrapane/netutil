@@ -86,7 +86,7 @@ class VarIntDataBuffer : virtual public DataBuffer
             {
                 throw DataBufferException("Read VarUint exceeds upper limit");
             }
-            value = read_value;
+            value = static_cast<T::value_type>(read_value);
             return length;
         }
         template<VariableSignedInteger T>
@@ -102,7 +102,7 @@ class VarIntDataBuffer : virtual public DataBuffer
             {
                 throw DataBufferException("Read VarInt exceeds lower limit");
             }
-            value = read_value;
+            value = static_cast<T::value_type>(read_value);
             return length;
         }
 
