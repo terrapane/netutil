@@ -31,7 +31,7 @@ endif()
 target_compile_options(netutil
     PRIVATE
         $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>: -Wpedantic -Wextra -Wall>
-        $<$<CXX_COMPILER_ID:MSVC>: >)
+        $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>)
 
 # Link against library dependencies
 target_link_libraries(netutil PRIVATE Terra::bitutil)

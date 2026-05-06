@@ -1,7 +1,7 @@
 /*
  *  data_buffer.cpp
  *
- *  Copyright (C) 2024
+ *  Copyright (C) 2024, 2026
  *  Terrapane Corporation
  *  All Rights Reserved
  *
@@ -28,6 +28,8 @@
 #include <cctype>
 #include <algorithm>
 #include <sstream>
+#include <iterator>
+#include <ranges>
 #include <terra/netutil/data_buffer.h>
 #include <terra/bitutil/byte_order.h>
 #include <terra/bitutil/significant_bit.h>
@@ -53,11 +55,10 @@ namespace Terra::NetUtil
  *      None.
  */
 DataBuffer::DataBuffer() :
-    owns_buffer(false),
-    buffer(nullptr),
-    buffer_size(0),
-    data_length(0),
-    read_position(0)
+    owns_buffer{false},
+    buffer{},
+    data_length{0},
+    read_position{0}
 {
 }
 
@@ -105,7 +106,7 @@ DataBuffer::DataBuffer(std::size_t buffer_size) : DataBuffer()
  */
 DataBuffer::DataBuffer(std::span<std::uint8_t> buffer) : DataBuffer()
 {
-    SetBuffer(buffer.data(), buffer.size(), buffer.size());
+    SetBuffer(buffer, buffer.size());
 }
 
 /*
@@ -140,7 +141,7 @@ DataBuffer::DataBuffer(std::uint8_t *buffer,
                        std::size_t buffer_size,
                        std::size_t data_length) : DataBuffer()
 {
-    SetBuffer(buffer, buffer_size, data_length);
+    SetBuffer({buffer, buffer_size}, data_length);
 }
 
 /*
@@ -167,13 +168,13 @@ DataBuffer::DataBuffer(std::uint8_t *buffer,
 DataBuffer::DataBuffer(const DataBuffer &other) : DataBuffer()
 {
     // Allocate memory and perform a copy only if the other object has a buffer
-    if (other.buffer != nullptr)
+    if (!other.buffer.empty())
     {
         // Allocate memory for this DataBuffer object
-        AllocateBuffer(other.buffer_size);
+        AllocateBuffer(other.buffer.size());
 
         // Copy the octets from the data buffer into the span
-        std::copy_n(other.buffer, buffer_size, buffer);
+        std::ranges::copy(other.buffer, buffer.begin());
 
         // Set other internal variables from the other object
         data_length = other.data_length;
@@ -202,23 +203,11 @@ DataBuffer::DataBuffer(const DataBuffer &other) : DataBuffer()
  */
 DataBuffer::DataBuffer(DataBuffer &&other) noexcept : DataBuffer()
 {
-    // Move data only if the other object has a buffer
-    if (other.buffer != nullptr)
-    {
-        // Assign values from the other object to this object
-        owns_buffer = other.owns_buffer;
-        buffer = other.buffer;
-        buffer_size = other.buffer_size;
-        data_length = other.data_length;
-        read_position = other.read_position;
-
-        // Clear all values in the other object
-        other.owns_buffer = false;
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-        other.data_length = 0;
-        other.read_position = 0;
-    }
+    // Swap values with the moved object
+    std::swap(owns_buffer, other.owns_buffer);
+    std::swap(buffer,other.buffer);
+    std::swap(data_length, other.data_length);
+    std::swap(read_position, other.read_position);
 }
 
 /*
@@ -271,13 +260,13 @@ DataBuffer &DataBuffer::operator=(const DataBuffer &other)
 
     // If this object does not own its buffer or the buffer is not the same
     // size as the other buffer, allocate memory for this DataBuffer
-    if (!owns_buffer || (buffer_size != other.buffer_size))
+    if (!owns_buffer || (buffer.size() != other.buffer.size()))
     {
-        AllocateBuffer(other.buffer_size);
+        AllocateBuffer(other.buffer.size());
     }
 
     // Copy the buffer contents if buffer size is non-zero
-    if (other.buffer_size > 0) std::copy_n(other.buffer, buffer_size, buffer);
+    if (!other.buffer.empty()) std::ranges::copy(other.buffer, buffer.begin());
 
     // Set other internal variables from the other object
     data_length = other.data_length;
@@ -304,26 +293,17 @@ DataBuffer &DataBuffer::operator=(const DataBuffer &other)
  */
 DataBuffer &DataBuffer::operator=(DataBuffer &&other) noexcept
 {
+   // If assigning to self, just return this
+    if (this == &other) return *this;
+
     // Free any previously allocated buffer or clear any set buffer
     FreeBuffer();
 
-    // Move data only if the other object has a buffer
-    if (other.buffer != nullptr)
-    {
-        // Assign values from the other object to this object
-        owns_buffer = other.owns_buffer;
-        buffer = other.buffer;
-        buffer_size = other.buffer_size;
-        data_length = other.data_length;
-        read_position = other.read_position;
-
-        // Clear all values in the other object
-        other.owns_buffer = false;
-        other.buffer = nullptr;
-        other.buffer_size = 0;
-        other.data_length = 0;
-        other.read_position = 0;
-    }
+    // Swap values with the moved object
+    std::swap(owns_buffer, other.owns_buffer);
+    std::swap(buffer,other.buffer);
+    std::swap(data_length, other.data_length);
+    std::swap(read_position, other.read_position);
 
     return *this;
 }
@@ -354,8 +334,9 @@ void DataBuffer::AllocateBuffer(std::size_t size)
     if (size == 0) return;
 
     // Attempt to allocate the requested memory
-    buffer = new std::uint8_t[size];
-    buffer_size = size;
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    std::uint8_t *raw_buffer = new std::uint8_t[size];
+    buffer = std::span(raw_buffer, size);
     owns_buffer = true;
 }
 
@@ -379,12 +360,11 @@ void DataBuffer::AllocateBuffer(std::size_t size)
 void DataBuffer::FreeBuffer()
 {
     // If DataBuffer owns the memory, free it
-    if (owns_buffer) delete[] buffer;
+    if (owns_buffer) delete[] buffer.data();
 
     // Reset various buffer-related member variables
-    buffer = nullptr;
+    buffer = {};
     owns_buffer = false;
-    buffer_size = 0;
     data_length = 0;
     read_position = 0;
 }
@@ -411,27 +391,27 @@ void DataBuffer::FreeBuffer()
 std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset) const
 {
     // If there is no underlying buffer assigned, return nullptr
-    if (buffer == nullptr) return nullptr;
+    if (buffer.empty()) return nullptr;
 
     // Ensure the request is not beyond the buffer length
-    if (offset >= buffer_size)
+    if (offset >= buffer.size())
     {
         throw DataBufferException("Invalid buffer pointer requested");
     }
 
-    return buffer + offset;
+    return &buffer[offset];
 }
 
 /*
- *  DataBuffer::GetBufferPointer()
+ *  DataBuffer::GetDataSpan()
  *
  *  Description:
- *      Get a span over the data buffer with respect to both the data length
- *      and the read position.
+ *      Get a span over the data inside the buffer, paying respect to both the
+ *      the data length and the read position (i.e., a span over only the octets
+ *      that have not been read).  This is a subspan over the entire buffer.
  *
  *  Parameters:
- *      offset [in]
- *          Offset into the buffer between zero and the size of the buffer.
+ *      None.
  *
  *  Returns:
  *      A span over the octets in the DataBuffer that take into account the
@@ -440,9 +420,9 @@ std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset) const
  *  Comments:
  *      None.
  */
-std::span<std::uint8_t> DataBuffer::GetBufferSpan() const
+std::span<std::uint8_t> DataBuffer::GetDataSpan() const
 {
-    return {buffer + read_position, data_length - read_position};
+    return buffer.subspan(read_position, data_length - read_position);
 }
 
 /*
@@ -463,32 +443,7 @@ std::span<std::uint8_t> DataBuffer::GetBufferSpan() const
  */
 std::size_t DataBuffer::GetBufferSize() const
 {
-    return buffer_size;
-}
-
-/*
- *  DataBuffer::SetBuffer()
- *
- *  Description:
- *      Instructs DataBuffer to use the specified span.  If the DataBuffer had
- *      previously allocated a buffer, that buffer will be freed first.  The
- *      DataBuffer will not take ownership of the span given and it will not
- *      attempt to free it later.  The read position is also set to the start of
- *      the buffer and the data length will be set to the size of the span.
- *
- *  Parameters:
- *      new_buffer [in]
- *          Span of octets that over which the data buffer will operate.
- *
- *  Returns:
- *      Nothing.
- *
- *  Comments:
- *      None.
- */
-void DataBuffer::SetBuffer(std::span<std::uint8_t> new_buffer)
-{
-    SetBuffer(new_buffer.data(), new_buffer.size(), new_buffer.size());
+    return buffer.size();
 }
 
 /*
@@ -503,13 +458,7 @@ void DataBuffer::SetBuffer(std::span<std::uint8_t> new_buffer)
  *
  *  Parameters:
  *      new_buffer [in]
- *          Pointer to a raw data buffer for the DataBuffer object to use.
- *          If this value is nullptr, it has the effect of clearing the
- *          buffer and the other parameters are ignored.
- *
- *      new_buffer_size [in]
- *          The length of the given buffer pointer. This value cannot be zero
- *          if a buffer pointer is not nullptr.
+ *          Span of octets that over which the data buffer will operate.
  *
  *      new_data_length [in]
  *          The length of any data in the given buffer.  This value cannot
@@ -522,25 +471,23 @@ void DataBuffer::SetBuffer(std::span<std::uint8_t> new_buffer)
  *  Comments:
  *      None.
  */
-void DataBuffer::SetBuffer(std::uint8_t *new_buffer,
-                           std::size_t new_buffer_size,
+void DataBuffer::SetBuffer(std::span<std::uint8_t> new_buffer,
                            std::size_t new_data_length)
 {
     // Free any existing buffer
     FreeBuffer();
 
-    // Just return if the buffer pointer is nullptr
-    if (new_buffer == nullptr) return;
+    // Ensure the new buffer isn't effectively empty
+    if ((new_buffer.data() == nullptr) || (new_buffer.empty())) return;
 
-    // Ensure the parameters are sane
-    if ((new_buffer_size == 0) || (new_data_length > new_buffer_size))
+    // Ensure the data length value is valid
+    if (new_data_length > new_buffer.size())
     {
         throw DataBufferException("Setting buffer with invalid argument(s)");
     }
 
     // Set various member variables
     buffer = new_buffer;
-    buffer_size = new_buffer_size;
     data_length = new_data_length;
 }
 
@@ -585,7 +532,7 @@ std::size_t DataBuffer::GetDataLength() const
  */
 void DataBuffer::SetDataLength(std::size_t length)
 {
-    if (length > buffer_size)
+    if (length > buffer.size())
     {
         throw DataBufferException("Cannot set the data length beyond the "
                                   "buffer size");
@@ -750,7 +697,8 @@ bool DataBuffer::operator==(const DataBuffer &other)
     if (data_length == 0) return true;
 
     // Compare the buffer contents with respect to the data length
-    return std::equal(buffer, buffer + data_length, other.buffer);
+    return std::ranges::equal(buffer.first(data_length),
+                              other.buffer.first(data_length));
 }
 
 /*
@@ -798,7 +746,7 @@ bool DataBuffer::operator!=(const DataBuffer &other)
  */
 std::uint8_t &DataBuffer::operator[](std::size_t index)
 {
-    if (index >= buffer_size)
+    if (index >= buffer.size())
     {
         throw DataBufferException("Index is beyond the data buffer");
     }
@@ -827,7 +775,7 @@ std::uint8_t &DataBuffer::operator[](std::size_t index)
  */
 const std::uint8_t &DataBuffer::operator[](std::size_t index) const
 {
-    if (index >= buffer_size)
+    if (index >= buffer.size())
     {
         throw DataBufferException("Index is beyond the data buffer");
     }
@@ -854,7 +802,7 @@ const std::uint8_t &DataBuffer::operator[](std::size_t index) const
  */
 std::span<std::uint8_t>::iterator DataBuffer::begin() const noexcept
 {
-    return GetBufferSpan().begin();
+    return GetDataSpan().begin();
 }
 
 /*
@@ -876,7 +824,7 @@ std::span<std::uint8_t>::iterator DataBuffer::begin() const noexcept
  */
 std::span<std::uint8_t>::iterator DataBuffer::end() const noexcept
 {
-    return GetBufferSpan().end();
+    return GetDataSpan().end();
 }
 
 /*
@@ -906,13 +854,13 @@ void DataBuffer::SetValue(const std::span<const std::uint8_t> value,
     if (value.empty()) return;
 
     // Ensure this operation will not write beyond the buffer
-    if ((offset + value.size()) > buffer_size)
+    if ((offset + value.size()) > buffer.size())
     {
         throw DataBufferException("Attempt to write beyond the buffer");
     }
 
     // Copy the octets from the data buffer into the span
-    std::copy_n(value.data(), value.size(), buffer + offset);
+    std::ranges::copy(value, buffer.subspan(offset).begin());
 }
 
 /*
@@ -935,7 +883,7 @@ void DataBuffer::SetValue(const std::span<const std::uint8_t> value,
  *  Comments:
  *      None.
  */
-void DataBuffer::SetValue(const std::span<const char> value, std::size_t offset)
+void DataBuffer::SetValue(std::span<const char> value, std::size_t offset)
 {
     // This library assumes a character is 8 bits
     static_assert(CHAR_BIT == 8);
@@ -968,7 +916,7 @@ void DataBuffer::SetValue(const std::span<const char> value, std::size_t offset)
 void DataBuffer::SetValue(std::uint8_t value, std::size_t offset)
 {
     // Ensure this operation will not write beyond the buffer
-    if (offset >= buffer_size)
+    if (offset >= buffer.size())
     {
         throw DataBufferException("Attempt to write beyond the buffer");
     }
@@ -1000,7 +948,7 @@ void DataBuffer::SetValue(std::uint8_t value, std::size_t offset)
 void DataBuffer::SetValue(std::int8_t value, std::size_t offset)
 {
     // Ensure this operation will not write beyond the buffer
-    if (offset >= buffer_size)
+    if (offset >= buffer.size())
     {
         throw DataBufferException("Attempt to write beyond the buffer");
     }
@@ -1266,13 +1214,13 @@ void DataBuffer::GetValue(std::span<std::uint8_t> value,
     if (value.empty()) return;
 
     // Ensure this operation will not read beyond the buffer
-    if ((offset + value.size()) > buffer_size)
+    if ((offset + value.size()) > buffer.size())
     {
         throw DataBufferException("Attempt to read beyond the buffer");
     }
 
     // Copy the octets from the data buffer into the span
-    std::copy_n(buffer + offset, value.size(), value.data());
+    std::ranges::copy(buffer.subspan(offset, value.size()), value.begin());
 }
 
 /*
@@ -1300,19 +1248,15 @@ void DataBuffer::GetValue(std::span<std::uint8_t> value,
  */
 void DataBuffer::GetValue(std::span<char> value, std::size_t offset) const
 {
-    // If there is nothing to read, just return
-    if (value.empty()) return;
+    // This library assumes a character is 8 bits
+    static_assert(CHAR_BIT == 8);
 
-    // Ensure this operation will not read beyond the buffer
-    if ((offset + value.size()) > buffer_size)
-    {
-        throw DataBufferException("Attempt to read beyond the buffer");
-    }
+    // Create a compatible span
+    auto compat_span =
+        std::span<std::uint8_t>(reinterpret_cast<std::uint8_t *>(value.data()),
+                                value.size());
 
-    // Copy the octets from the data buffer into the span
-    std::copy_n(buffer + offset,
-                value.size(),
-                reinterpret_cast<std::uint8_t *>(value.data()));
+    GetValue(compat_span, offset);
 }
 
 /*
@@ -1339,7 +1283,7 @@ void DataBuffer::GetValue(std::span<char> value, std::size_t offset) const
 void DataBuffer::GetValue(std::uint8_t &value, std::size_t offset) const
 {
     // Ensure this operation will not read beyond the buffer
-    if (offset >= buffer_size)
+    if (offset >= buffer.size())
     {
         throw DataBufferException("Attempt to read beyond the buffer");
     }
@@ -1372,7 +1316,7 @@ void DataBuffer::GetValue(std::uint8_t &value, std::size_t offset) const
 void DataBuffer::GetValue(std::int8_t &value, std::size_t offset) const
 {
     // Ensure this operation will not read beyond the buffer
-    if (offset >= buffer_size)
+    if (offset >= buffer.size())
     {
         throw DataBufferException("Attempt to read beyond the buffer");
     }
@@ -1403,8 +1347,7 @@ void DataBuffer::GetValue(std::int8_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::uint16_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = BitUtil::NetworkByteOrder(value);
 }
 
@@ -1431,8 +1374,7 @@ void DataBuffer::GetValue(std::uint16_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::int16_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = static_cast<std::int16_t>(
         BitUtil::NetworkByteOrder(static_cast<std::uint16_t>(value)));
 }
@@ -1460,8 +1402,7 @@ void DataBuffer::GetValue(std::int16_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::uint32_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = BitUtil::NetworkByteOrder(value);
 }
 
@@ -1488,8 +1429,7 @@ void DataBuffer::GetValue(std::uint32_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::int32_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = static_cast<std::int32_t>(
         BitUtil::NetworkByteOrder(static_cast<std::uint32_t>(value)));
 }
@@ -1517,8 +1457,7 @@ void DataBuffer::GetValue(std::int32_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::uint64_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = BitUtil::NetworkByteOrder(value);
 }
 
@@ -1545,8 +1484,7 @@ void DataBuffer::GetValue(std::uint64_t &value, std::size_t offset) const
  */
 void DataBuffer::GetValue(std::int64_t &value, std::size_t offset) const
 {
-    GetValue({ reinterpret_cast<std::uint8_t *>(&value), sizeof(value) },
-             offset);
+    GetValue({reinterpret_cast<std::uint8_t *>(&value), sizeof(value)}, offset);
     value = static_cast<std::int64_t>(
         BitUtil::NetworkByteOrder(static_cast<std::uint64_t>(value)));
 }

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 # Define the Network Utilities project
 project(netutil
-        VERSION 1.0.2.0
+        VERSION 1.0.4.0
         DESCRIPTION "Network Utilities Library"
         LANGUAGES CXX)
 
@@ -12,7 +12,7 @@ if(PROJECT_IS_TOP_LEVEL)
     option(netutil_BUILD_TESTS "Build Tests for the Network Utilities Library" ON)
 else()
     # Option to control whether tests are built
-    option(netutil_BUILD_TESTS "Build Tests for the Network Utilities Library" OFF)
+    option(netutil_BUILDq_TESTS "Build Tests for the Network Utilities Library" OFF)
 endif()
 
 # Option to control ability to install the library

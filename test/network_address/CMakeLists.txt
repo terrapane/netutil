@@ -12,7 +12,7 @@ set_target_properties(test_network_address
 target_compile_options(test_network_address
     PRIVATE
         $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>: -Wpedantic -Wextra -Wall>
-        $<$<CXX_COMPILER_ID:MSVC>: >)
+        $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>)
 
 add_test(NAME test_network_address
          COMMAND test_network_address)

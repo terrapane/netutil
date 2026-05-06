@@ -64,7 +64,7 @@ std::size_t VarIntDataBuffer::SetValue(const VarUint64_t &value,
     const std::size_t octets_required = VarUintSize(value);
 
     // Ensure there is sufficient space in the buffer
-    if ((offset + octets_required) > buffer_size)
+    if ((offset + octets_required) > buffer.size())
     {
         throw DataBufferException("Attempt to write beyond the buffer");
     }
@@ -118,7 +118,7 @@ std::size_t VarIntDataBuffer::SetValue(const VarInt64_t &value,
     std::size_t octets_required = VarIntSize(value);
 
     // Ensure there is sufficient space in the buffer
-    if ((offset + octets_required) > buffer_size)
+    if ((offset + octets_required) > buffer.size())
     {
         throw DataBufferException("Attempt to write beyond the buffer");
     }
@@ -190,7 +190,7 @@ std::size_t VarIntDataBuffer::GetValue(VarUint64_t &value,
         }
 
         // Ensure we do not read beyond the buffer
-        if ((offset + total_octets) > buffer_size)
+        if ((offset + total_octets) > buffer.size())
         {
             throw DataBufferException("Attempt to read beyond the data length");
         }
@@ -244,7 +244,7 @@ std::size_t VarIntDataBuffer::GetValue(VarInt64_t &value,
     std::size_t total_octets{0};
 
     // Ensure we do not read beyond the buffer
-    if (offset > buffer_size)
+    if (offset > buffer.size())
     {
         throw DataBufferException("Attempt to read beyond the data length");
     }
@@ -263,7 +263,7 @@ std::size_t VarIntDataBuffer::GetValue(VarInt64_t &value,
         }
 
         // Ensure we do not read beyond the buffer
-        if ((offset + total_octets) > buffer_size)
+        if ((offset + total_octets) > buffer.size())
         {
             throw DataBufferException("Attempt to read beyond the data length");
         }
@@ -423,7 +423,7 @@ std::size_t VarIntDataBuffer::ReadValue(VarInt64_t &value)
  */
 std::size_t VarIntDataBuffer::VarUintSize(const VarUint64_t &value)
 {
-    return BitUtil::FindMSb(value) / 7 + 1;
+    return (BitUtil::FindMSb(value) / 7) + 1;
 }
 
 /*
@@ -446,7 +446,7 @@ std::size_t VarIntDataBuffer::VarUintSize(const VarUint64_t &value)
  */
 std::size_t VarIntDataBuffer::VarIntSize(const VarInt64_t &value)
 {
-    return (BitUtil::FindMSb(value) + 1) / 7 + 1;
+    return ((BitUtil::FindMSb(value) + 1) / 7) + 1;
 }
 
 } // namespace Terra::NetUtil

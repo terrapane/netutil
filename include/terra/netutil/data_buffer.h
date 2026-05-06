@@ -1,7 +1,7 @@
 /*
  *  data_buffer.h
  *
- *  Copyright (C) 2024
+ *  Copyright (C) 2024, 2026
  *  Terrapane Corporation
  *  All Rights Reserved
  *
@@ -54,8 +54,9 @@
  *      read position are ignored), though the offset is checked to ensure a
  *      returned pointer is not beyond the end of the buffer.
  *
- *      Calling GetBufferSpan() returns a span over the DataBuffer with respect
- *      to the current read position and data length.
+ *      Calling GetDataSpan() returns a span over the DataBuffer with respect
+ *      to the current read position and data length, returning a span over
+ *      the unread data inside the buffer.
  *
  *      Numeric values are written to the DataBuffer in Network Byte Order
  *      (big endian).  Likewise, numeric values in the DataBuffer are read
@@ -116,11 +117,9 @@ class DataBuffer
         DataBuffer &operator=(DataBuffer &&other) noexcept;
 
         std::uint8_t *GetBufferPointer(std::size_t offset = 0) const;
-        std::span<std::uint8_t> GetBufferSpan() const;
+        std::span<std::uint8_t> GetDataSpan() const;
         std::size_t GetBufferSize() const;
-        void SetBuffer(std::span<std::uint8_t> new_buffer);
-        void SetBuffer(std::uint8_t *new_buffer,
-                       std::size_t new_buffer_size,
+        void SetBuffer(std::span<std::uint8_t> new_buffer,
                        std::size_t new_data_length = 0);
 
         std::size_t GetDataLength() const;
@@ -141,9 +140,8 @@ class DataBuffer
         std::span<std::uint8_t>::iterator begin() const noexcept;
         std::span<std::uint8_t>::iterator end() const noexcept;
 
-        void SetValue(const std::span<const std::uint8_t> value,
-                      std::size_t offset);
-        void SetValue(const std::span<const char> value, std::size_t offset);
+        void SetValue(std::span<const std::uint8_t> value, std::size_t offset);
+        void SetValue(std::span<const char> value, std::size_t offset);
         void SetValue(std::uint8_t value, std::size_t offset);
         void SetValue(std::int8_t value, std::size_t offset);
         void SetValue(std::uint16_t value, std::size_t offset);
@@ -168,8 +166,8 @@ class DataBuffer
         void GetValue(float &value, std::size_t offset) const;
         void GetValue(double &value, std::size_t offset) const;
 
-        void AppendValue(const std::span<const std::uint8_t> value);
-        void AppendValue(const std::span<const char> value);
+        void AppendValue(std::span<const std::uint8_t> value);
+        void AppendValue(std::span<const char> value);
         void AppendValue(std::uint8_t value);
         void AppendValue(std::int8_t value);
         void AppendValue(std::uint16_t value);
@@ -213,8 +211,7 @@ class DataBuffer
         void FreeBuffer();
 
         bool owns_buffer;                       // Is the buffer owned?
-        std::uint8_t *buffer;                   // Pointer to buffer
-        std::size_t buffer_size;                // Size of buffer
+        std::span<std::uint8_t> buffer;         // Span over buffer
         std::size_t data_length;                // Length of data in buffer
         std::size_t read_position;              // Current read position
 };

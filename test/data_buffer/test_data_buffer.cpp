@@ -110,14 +110,14 @@ STF_TEST(TestDataBuffer, Constructor6)
     // Verify that the buffer and data length are 64 octets
     STF_ASSERT_EQ(64, data_buffer.GetBufferSize());
     STF_ASSERT_EQ(64, data_buffer.GetDataLength());
-    STF_ASSERT_EQ(64, data_buffer.GetBufferSpan().size());
+    STF_ASSERT_EQ(64, data_buffer.GetDataSpan().size());
 
     // Read two octets out of the buffer
     std::uint16_t some_value;
     data_buffer >> some_value;
 
     // Span size should now be 62
-    STF_ASSERT_EQ(62, data_buffer.GetBufferSpan().size());
+    STF_ASSERT_EQ(62, data_buffer.GetDataSpan().size());
 }
 
 STF_TEST(TestDataBuffer, CopyAssignmentOperator)
@@ -183,7 +183,7 @@ STF_TEST(TestDataBuffer, SetBuffer1)
     STF_ASSERT_FALSE(data_buffer.Empty());
     STF_ASSERT_EQ(64, data_buffer.GetBufferSize());
 
-    data_buffer.SetBuffer(std::span{buffer2, sizeof(buffer2)});
+    data_buffer.SetBuffer(buffer2, 32);
 
     STF_ASSERT_EQ(buffer2, data_buffer.GetBufferPointer());
     STF_ASSERT_EQ(32, data_buffer.GetDataLength());
@@ -202,7 +202,7 @@ STF_TEST(TestDataBuffer, SetBuffer2)
     STF_ASSERT_FALSE(data_buffer.Empty());
     STF_ASSERT_EQ(64, data_buffer.GetBufferSize());
 
-    data_buffer.SetBuffer(buffer2, 32, 8);
+    data_buffer.SetBuffer(buffer2, 8);
 
     STF_ASSERT_EQ(buffer2, data_buffer.GetBufferPointer());
     STF_ASSERT_EQ(8, data_buffer.GetDataLength());
