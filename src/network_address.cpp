@@ -1,7 +1,7 @@
 /*
  *  network_address.h
  *
- *  Copyright (C) 2024
+ *  Copyright (C) 2024, 2026
  *  Terrapane Corporation
  *  All Rights Reserved
  *
@@ -19,8 +19,19 @@
  *      None.
  */
 
+#ifdef _WIN32
+#include <Winsock2.h>
+#include <WS2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
+#include <iostream>
 #include <cstring>
 #include <array>
+#include <string>
+#include <cstdint>
+// #include <string_view>
 #include <regex>
 #include <utility>
 #ifndef _WIN32
@@ -28,11 +39,35 @@
 #endif
 #include <terra/netutil/network_address.h>
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
+
 namespace Terra::NetUtil
 {
 
 namespace
 {
+
+/*
+ *  CopyAddressStorage()
+ *
+ *  Description:
+ *      This is a helper function that will copy the address storage from one
+ *      location to another.
+ *
+ *  Parameters:
+ *      None.
+ *
+ *  Returns:
+ *      Nothing.
+ *
+ *  Comments:
+ *      None.
+ */
+inline void CopyAddressStorage(const AddressStorage &source,
+                               AddressStorage &destination)
+{
+    destination.ss = source.ss;
+}
 
 /*
  *  ExtractAddress()
@@ -65,10 +100,11 @@ namespace
 std::pair<NetworkAddressType, std::string> ExtractAddress(
                                                     const std::string &address)
 {
-    std::regex ipv4_regex(
+    const std::regex ipv4_regex(
         R"(^\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?\s*$)");
-    std::regex ipv6_bracketed_regex(R"(^\s*\[([a-fA-F0-9:]+)\](:\d+)?\s*$)");
-    std::regex ipv6_plain_regex(R"(^\s*([a-fA-F0-9:]+)\s*$)");
+    const std::regex ipv6_bracketed_regex(
+        R"(^\s*\[([a-fA-F0-9:]+)\](:\d+)?\s*$)");
+    const std::regex ipv6_plain_regex(R"(^\s*([a-fA-F0-9:]+)\s*$)");
     std::smatch match;
 
     // Attempt to match the string against the IPv4 regular expression
@@ -162,7 +198,7 @@ NetworkAddress::NetworkAddress(const std::string &address, std::uint16_t port) :
  *      operator.
  */
 NetworkAddress::NetworkAddress(const char *address) :
-    NetworkAddress(std::string(address))
+    NetworkAddress(std::string(address), 0)
 {
 }
 
@@ -238,9 +274,7 @@ NetworkAddress::NetworkAddress(const NetworkAddress &other) noexcept :
     address_storage{}
 {
     // Copy the address data from the other object
-    std::memcpy(&address_storage.ss,
-                &other.address_storage,
-                sizeof(address_storage.ss));
+    CopyAddressStorage(other.address_storage, address_storage);
 }
 
 /*
@@ -264,9 +298,7 @@ NetworkAddress::NetworkAddress(const NetworkAddress &&other) noexcept :
     address_storage{}
 {
     // Copy the address data from the other object
-    std::memcpy(&address_storage.ss,
-                &other.address_storage,
-                sizeof(address_storage.ss));
+    CopyAddressStorage(other.address_storage, address_storage);
 }
 
 /*
@@ -291,9 +323,7 @@ NetworkAddress& NetworkAddress::operator=(const NetworkAddress& other) noexcept
     if (this == &other) return *this;
 
     // Copy the address data from the other object
-    std::memcpy(&address_storage.ss,
-                &other.address_storage,
-                sizeof(address_storage.ss));
+    CopyAddressStorage(other.address_storage, address_storage);
 
     return *this;
 }
@@ -321,9 +351,7 @@ NetworkAddress& NetworkAddress::operator=(NetworkAddress&& other) noexcept
     if (this == &other) return *this;
 
     // Copy the address data from the other object
-    std::memcpy(&address_storage.ss,
-                &other.address_storage,
-                sizeof(address_storage.ss));
+    CopyAddressStorage(other.address_storage, address_storage);
 
     return *this;
 }
@@ -365,9 +393,9 @@ bool NetworkAddress::AssignAddress(const std::string &address,
     if (address_type == NetworkAddressType::IPv4)
     {
         // Assume the string is IPv4
-        int result = inet_pton(AF_INET,
-                               clean_address.c_str(),
-                               &address_storage.sa4.sin_addr);
+        const int result = inet_pton(AF_INET,
+                                     clean_address.c_str(),
+                                     &address_storage.sa4.sin_addr);
 
         // If successful, set the address family and port
         if (result == 1)
@@ -381,9 +409,9 @@ bool NetworkAddress::AssignAddress(const std::string &address,
     }
 
     // Assign an IPv6 address
-    int result = inet_pton(AF_INET6,
-                           clean_address.c_str(),
-                           &address_storage.sa6.sin6_addr);
+    const int result = inet_pton(AF_INET6,
+                                 clean_address.c_str(),
+                                 &address_storage.sa6.sin6_addr);
 
     // If successful, set the address family and port
     if (result == 1)
@@ -1117,7 +1145,8 @@ std::ostream &operator<<(std::ostream &o, const NetworkAddress &address)
     // Only print something if the address is assigned
     if (address)
     {
-        bool ipv6 = (address.GetAddressType() == NetworkAddressType::IPv6);
+        const bool ipv6 =
+            (address.GetAddressType() == NetworkAddressType::IPv6);
 
         if (ipv6) o << "[";
 
@@ -1161,3 +1190,5 @@ std::ostream &operator<<(std::ostream &o, const NetworkAddressType &type)
 }
 
 } // namespace Terra::NetUtil
+
+// NOLINTEND(cppcoreguidelines-pro-type-union-access)

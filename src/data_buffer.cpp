@@ -23,16 +23,18 @@
  *      None.
  */
 
+#include <iostream>
+#include <cstddef>
+#include <cstdint>
 #include <climits>
 #include <iomanip>
 #include <cctype>
 #include <algorithm>
 #include <sstream>
-#include <iterator>
-#include <ranges>
+#include <span>
+#include <string>
 #include <terra/netutil/data_buffer.h>
 #include <terra/bitutil/byte_order.h>
-#include <terra/bitutil/significant_bit.h>
 
 namespace Terra::NetUtil
 {
@@ -56,7 +58,6 @@ namespace Terra::NetUtil
  */
 DataBuffer::DataBuffer() :
     owns_buffer{false},
-    buffer{},
     data_length{0},
     read_position{0}
 {
@@ -2237,12 +2238,13 @@ std::ostream &operator<<(std::ostream &o, const DataBuffer &data_buffer)
         oss << " " << std::setw(2) << static_cast<unsigned>(octet);
 
         // Add the ASCII form to the character map
-        ascii_map += ((std::isprint(octet) != 0) ? static_cast<char>(octet) : '.');
+        ascii_map +=
+            ((std::isprint(octet) != 0) ? static_cast<char>(octet) : '.');
 
         // Produce an output line when it is complete
         if ((++octet_counter % 16) == 0)
         {
-            o << oss.str() << " :" << ascii_map << ":" << std::endl;
+            o << oss.str() << " :" << ascii_map << ":\n";
             oss.str("");
             ascii_map.clear();
         }
@@ -2253,7 +2255,7 @@ std::ostream &operator<<(std::ostream &o, const DataBuffer &data_buffer)
     {
         ascii_map.resize(16, ' ');
         o << oss.str() << std::string((16 - (octet_counter % 16)) * 3, ' ')
-          << " :" << ascii_map << ":" << std::endl;
+          << " :" << ascii_map << ":\n";
     }
 
     return o;

@@ -1,7 +1,7 @@
 /*
  *  network_address.h
  *
- *  Copyright (C) 2024
+ *  Copyright (C) 2024, 2026
  *  Terrapane Corporation
  *  All Rights Reserved
  *
@@ -29,19 +29,30 @@
 #include <netinet/in.h>
 #endif
 #include <ostream>
-#include <string>
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <iterator>
 #include <climits>
 
 namespace Terra::NetUtil
 {
 
 // Define the supported network types
-enum class NetworkAddressType
+enum class NetworkAddressType : std::uint8_t
 {
     Unknown = 0,
     IPv4 = 1,
     IPv6 = 2
+};
+
+// A type to hold address storage and related components
+union AddressStorage
+{
+    struct sockaddr         sa;
+    struct sockaddr_in      sa4;
+    struct sockaddr_in6     sa6;
+    struct sockaddr_storage ss;
 };
 
 // Define the NetworkAddress object
@@ -49,7 +60,9 @@ class NetworkAddress
 {
     public:
         NetworkAddress();
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
         NetworkAddress(const std::string &address, std::uint16_t port = 0);
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
         NetworkAddress(const char *address);
         NetworkAddress(const struct sockaddr *address,
                        socklen_t address_length);
@@ -57,10 +70,10 @@ class NetworkAddress
                        socklen_t address_length);
         NetworkAddress(const NetworkAddress &other) noexcept;
         NetworkAddress(const NetworkAddress &&other) noexcept;
-        ~NetworkAddress() = default;
+        virtual ~NetworkAddress() = default;
 
-        NetworkAddress& operator=(const NetworkAddress& other) noexcept;
-        NetworkAddress& operator=(NetworkAddress&& other) noexcept;
+        NetworkAddress &operator=(const NetworkAddress &other) noexcept;
+        NetworkAddress &operator=(NetworkAddress &&other) noexcept;
 
         bool AssignAddress(const std::string &address, std::uint16_t port = 0);
         bool AssignAddress(const struct sockaddr *address,
@@ -69,8 +82,8 @@ class NetworkAddress
                            socklen_t address_length);
         std::string GetAddress() const;
 
-        sockaddr_storage* GetAddressStorage();
-        const sockaddr_storage* GetAddressStorage() const;
+        sockaddr_storage *GetAddressStorage();
+        const sockaddr_storage *GetAddressStorage() const;
         socklen_t GetAddressStorageSize() const;
 
         bool AssignPort(std::uint16_t port);
@@ -90,13 +103,7 @@ class NetworkAddress
         bool operator>(const NetworkAddress &other) const;
 
     protected:
-        union
-        {
-            struct sockaddr         sa;
-            struct sockaddr_in      sa4;
-            struct sockaddr_in6     sa6;
-            struct sockaddr_storage ss;
-        } address_storage;
+        AddressStorage address_storage;
 };
 
 // Hash object to facilitate use of std::unordered_map
@@ -109,15 +116,18 @@ struct NetworkAddressHash
 
         const std::uint8_t *p = reinterpret_cast<const std::uint8_t *>(
                                                 address.GetAddressStorage());
-        const std::uint8_t *q = p + address.GetAddressStorageSize();
+        const std::uint8_t *q = std::next(p, address.GetAddressStorageSize());
 
         while (p < q)
         {
             // XOR least-significant octet of hash
-            hash ^= static_cast<std::size_t>(*p++);
+            hash ^= static_cast<std::size_t>(*p);
 
             // Rotate the hash eight bits to the left
-            hash = ((hash << 8) | (hash >> (hash_bits - 8)));
+            hash = ((hash << 8U) | (hash >> (hash_bits - 8)));
+
+            // Advance the pointer p
+            std::advance(p, 1);
         }
 
         return hash;

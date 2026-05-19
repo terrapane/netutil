@@ -31,8 +31,12 @@
  *      None.
  */
 
+#include <cstddef>
+#include <cstdint>
+#include <terra/netutil/data_buffer.h>
 #include <terra/netutil/varint_data_buffer.h>
 #include <terra/bitutil/significant_bit.h>
+#include <terra/netutil/variable_integer.h>
 
 namespace Terra::NetUtil
 {
@@ -76,13 +80,13 @@ std::size_t VarIntDataBuffer::SetValue(const VarUint64_t &value,
     for (std::size_t i = octets_required; i > 0; i--)
     {
         // Get the group of 7 bits
-        std::uint8_t octet = data_bits & 0x7f;
+        std::uint8_t octet = data_bits & 0x7fU;
 
         // Shift the data bits vector by 7 bits
-        data_bits >>= 7;
+        data_bits >>= 7U;
 
         // If this is not the last octet, set the MSb to 1
-        if (i != octets_required) octet |= 0x80;
+        if (i != octets_required) octet |= 0x80U;
 
         // Write the value into the buffer
         buffer[offset + i - 1] = octet;
@@ -115,7 +119,7 @@ std::size_t VarIntDataBuffer::SetValue(const VarInt64_t &value,
                                        std::size_t offset)
 {
     // Determine space requirements for the variable-width integer
-    std::size_t octets_required = VarIntSize(value);
+    const std::size_t octets_required = VarIntSize(value);
 
     // Ensure there is sufficient space in the buffer
     if ((offset + octets_required) > buffer.size())
@@ -130,13 +134,15 @@ std::size_t VarIntDataBuffer::SetValue(const VarInt64_t &value,
     for (std::size_t i = octets_required; i > 0; i--)
     {
         // Get the group of 7 bits
-        std::uint8_t octet = data_bits & 0x7f;
+        std::uint8_t octet = static_cast<std::uint64_t>(data_bits) & 0x7fU;
 
-        // Shift the data bits vector by 7 bits
-        data_bits >>= 7;
+        // Shift the data bits vector by 7 bits (important that sign bit
+        // populates the upper bit positions when shifted)
+        // NOLINTNEXTLINE(hicpp-signed-bitwise)
+        data_bits >>= 7U;
 
         // If this is not the last octet, set the MSb to 1
-        if (i != octets_required) octet |= 0x80;
+        if (i != octets_required) octet |= 0x80U;
 
         // Write the value into the buffer
         buffer[offset + i - 1] = octet;
@@ -180,7 +186,7 @@ std::size_t VarIntDataBuffer::GetValue(VarUint64_t &value,
     value = 0;
 
     // Read octets until we find the last one having a 0 MSb
-    while ((octet & 0x80) != 0)
+    while ((octet & 0x80U) != 0)
     {
         // A 64-bits value should never require more than 10 octets
         if (++total_octets == 11)
@@ -199,7 +205,7 @@ std::size_t VarIntDataBuffer::GetValue(VarUint64_t &value,
         octet = buffer[offset + total_octets - 1];
 
         // Add these bits to the returned value
-        value = (value << 7) | (octet & 0x7f);
+        value = (value << 7U) | (octet & 0x7fU);
     }
 
     // If the total length is 10 octets, initial octet must be 0x81
@@ -250,10 +256,10 @@ std::size_t VarIntDataBuffer::GetValue(VarInt64_t &value,
     }
 
     // Determine the sign of the number by inspecting the leading sign bit
-    value = ((buffer[offset] & 0x40) != 0) ? -1 : 0;
+    value = ((buffer[offset] & 0x40U) != 0) ? -1 : 0;
 
     // Read octets until we find the last one having a 0 MSb
-    while ((octet & 0x80) != 0)
+    while ((octet & 0x80U) != 0)
     {
         // A 64-bits value should never require more than 10 octets
         if (++total_octets == 11)
@@ -272,7 +278,9 @@ std::size_t VarIntDataBuffer::GetValue(VarInt64_t &value,
         octet = buffer[offset + total_octets - 1];
 
         // Add these bits to the returned value
-        value = (value << 7) | (octet & 0x7f);
+        const std::uint64_t u_value = static_cast< std::uint64_t>(value);
+        value = static_cast<VarInt64_t::value_type>((u_value << 7U) |
+                                                    (octet & 0x7fU));
     }
 
     // If the total length is 10 octets, ensure the initial octet is one
@@ -306,7 +314,7 @@ std::size_t VarIntDataBuffer::GetValue(VarInt64_t &value,
  */
 std::size_t VarIntDataBuffer::AppendValue(const VarUint64_t &value)
 {
-    std::size_t length = SetValue(value, data_length);
+    const std::size_t length = SetValue(value, data_length);
     data_length += length;
 
     return length;
@@ -331,7 +339,7 @@ std::size_t VarIntDataBuffer::AppendValue(const VarUint64_t &value)
  */
 std::size_t VarIntDataBuffer::AppendValue(const VarInt64_t &value)
 {
-    std::size_t length = SetValue(value, data_length);
+    const std::size_t length = SetValue(value, data_length);
     data_length += length;
 
     return length;
@@ -358,7 +366,7 @@ std::size_t VarIntDataBuffer::AppendValue(const VarInt64_t &value)
  */
 std::size_t VarIntDataBuffer::ReadValue(VarUint64_t &value)
 {
-    std::size_t length = GetValue(value, read_position);
+    const std::size_t length = GetValue(value, read_position);
 
     if ((read_position + length) > data_length)
     {
@@ -391,7 +399,7 @@ std::size_t VarIntDataBuffer::ReadValue(VarUint64_t &value)
  */
 std::size_t VarIntDataBuffer::ReadValue(VarInt64_t &value)
 {
-    std::size_t length = GetValue(value, read_position);
+    const std::size_t length = GetValue(value, read_position);
 
     if ((read_position + length) > data_length)
     {

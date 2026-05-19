@@ -41,6 +41,8 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include "data_buffer.h"
 #include "variable_integer.h"
 
@@ -48,7 +50,7 @@ namespace Terra::NetUtil
 {
 
 // Define the VarIntDataBuffer object
-class VarIntDataBuffer : virtual public DataBuffer
+class VarIntDataBuffer : public DataBuffer
 {
     public:
         // Rely on the base class constructors
@@ -59,8 +61,6 @@ class VarIntDataBuffer : virtual public DataBuffer
         using DataBuffer::GetValue;
         using DataBuffer::AppendValue;
         using DataBuffer::ReadValue;
-
-        virtual ~VarIntDataBuffer() = default;
 
         std::size_t SetValue(const VarUint64_t &value, std::size_t offset);
         std::size_t SetValue(const VarInt64_t &value, std::size_t offset);
@@ -81,7 +81,7 @@ class VarIntDataBuffer : virtual public DataBuffer
         std::size_t GetValue(T &value, std::size_t offset) const
         {
             VarUint64_t read_value;
-            std::size_t length = GetValue(read_value, offset);
+            const std::size_t length = GetValue(read_value, offset);
             if (read_value > std::numeric_limits<typename T::value_type>::max())
             {
                 throw DataBufferException("Read VarUint exceeds upper limit");
@@ -93,7 +93,7 @@ class VarIntDataBuffer : virtual public DataBuffer
         std::size_t GetValue(T &value, std::size_t offset) const
         {
             VarInt64_t read_value;
-            std::size_t length = GetValue(read_value, offset);
+            const std::size_t length = GetValue(read_value, offset);
             if (read_value > std::numeric_limits<typename T::value_type>::max())
             {
                 throw DataBufferException("Read VarInt exceeds upper limit");
@@ -125,7 +125,7 @@ class VarIntDataBuffer : virtual public DataBuffer
         std::size_t ReadValue(T &value)
         {
             VarUint64_t read_value;
-            std::size_t length = ReadValue(read_value);
+            const std::size_t length = ReadValue(read_value);
             if (read_value > std::numeric_limits<typename T::value_type>::max())
             {
                 throw DataBufferException("Read VarUint exceeds upper limit");
@@ -137,7 +137,7 @@ class VarIntDataBuffer : virtual public DataBuffer
         std::size_t ReadValue(T &value)
         {
             VarInt64_t read_value;
-            std::size_t length = ReadValue(read_value);
+            const std::size_t length = ReadValue(read_value);
             if (read_value > std::numeric_limits<typename T::value_type>::max())
             {
                 throw DataBufferException("Read VarInt exceeds upper limit");

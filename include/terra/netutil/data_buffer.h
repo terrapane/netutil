@@ -83,7 +83,7 @@
 #pragma once
 
 #include <stdexcept>
-#include <cstdlib>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <ostream>
@@ -104,8 +104,8 @@ class DataBuffer
 {
     public:
         DataBuffer();
-        DataBuffer(std::size_t buffer_size);
-        DataBuffer(std::span<std::uint8_t> buffer);
+        explicit DataBuffer(std::size_t buffer_size);
+        explicit DataBuffer(std::span<std::uint8_t> buffer);
         DataBuffer(std::uint8_t *buffer,
                    std::size_t buffer_size,
                    std::size_t data_length = 0);

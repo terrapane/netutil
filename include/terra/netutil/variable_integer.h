@@ -28,7 +28,7 @@ namespace Terra::NetUtil
 {
 
 // Define a concept for integral types to use with VariableInteger
-template <typename T>
+template<typename T>
 concept IntegralType = std::is_integral_v<T>;
 
 template <IntegralType T>
@@ -38,22 +38,25 @@ class VariableInteger
         using value_type = T;
 
         VariableInteger() : value{} {}
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
         VariableInteger(T value) : value{value} {}
-        VariableInteger(VariableInteger<T> &other) { value = other.value; }
-        VariableInteger(VariableInteger<T> &&other) { value = other.value; }
+        VariableInteger(const VariableInteger<T> &other) = default;
+        VariableInteger(VariableInteger<T> &&other) noexcept = default;
         ~VariableInteger() = default;
 
+        // NOLINTNEXTLINE(hicpp-explicit-conversions)
         operator T() const { return value; }
         explicit operator bool() const { return value != 0; }
         bool operator!() const { return value == 0; }
+
+        constexpr VariableInteger<T> &operator=(
+            const VariableInteger<T> &other) = default;
+        constexpr VariableInteger<T> &operator=(
+            VariableInteger<T> &&other) noexcept = default;
+
         constexpr VariableInteger<T> &operator=(const T &other)
         {
             value = other;
-            return *this;
-        }
-        constexpr VariableInteger<T> &operator=(const VariableInteger<T> &other)
-        {
-            value = other.value;
             return *this;
         }
         constexpr VariableInteger<T> &operator+=(
