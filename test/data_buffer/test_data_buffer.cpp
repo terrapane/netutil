@@ -16,18 +16,23 @@
  */
 
 #include <span>
+#include <cstddef>
 #include <cstdint>
 #include <sstream>
-#include <limits>
 #include <terra/netutil/data_buffer.h>
 #include <terra/stf/stf.h>
 
 using namespace Terra;
 
+namespace
+{
+
 std::size_t SpanReceiver(std::span<const std::uint8_t> buffer)
 {
     return buffer.size();
 }
+
+} // namespace
 
 STF_TEST(TestDataBuffer, Constructor1)
 {
@@ -2063,9 +2068,9 @@ STF_TEST(TestDataBufer, ChainedStream)
 // Test non-const GetBufferPointer
 STF_TEST(TestDataBufer, GetBufferPointer)
 {
-    auto func = [](NetUtil::DataBuffer &data_buffer)
+    auto Func = [](NetUtil::DataBuffer &data_buffer)
     {
-        auto p = data_buffer.GetBufferPointer();
+        auto *p = data_buffer.GetBufferPointer();
         STF_ASSERT_NE('\0', *p);
     };
 
@@ -2074,15 +2079,15 @@ STF_TEST(TestDataBufer, GetBufferPointer)
 
     STF_ASSERT_EQ(5, data_buffer.GetDataLength());
 
-    func(data_buffer);
+    Func(data_buffer);
 }
 
 // Test const GetBufferPointer
 STF_TEST(TestDataBufer, ConstGetBufferPointer)
 {
-    auto func = [](const NetUtil::DataBuffer &data_buffer)
+    auto ConstFunc = [](const NetUtil::DataBuffer &data_buffer)
     {
-        auto p = data_buffer.GetBufferPointer();
+        const auto *p = data_buffer.GetBufferPointer();
         STF_ASSERT_NE('\0', *p);
     };
 
@@ -2091,5 +2096,5 @@ STF_TEST(TestDataBufer, ConstGetBufferPointer)
 
     STF_ASSERT_EQ(5, data_buffer.GetDataLength());
 
-    func(data_buffer);
+    ConstFunc(data_buffer);
 }
