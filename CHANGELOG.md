@@ -4,6 +4,8 @@ v1.0.4
 
 - Addressed several clang-tidy nits
 - Corrected warnings when casting to a narrower integral type
+- Modified iterators and GetDataPointer to differentiate between const
+  and non-const usage
 - Updated dependencies
 
 v1.0.3
