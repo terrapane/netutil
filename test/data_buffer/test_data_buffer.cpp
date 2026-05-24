@@ -1981,6 +1981,30 @@ STF_TEST(TestDataBuffer, RangeForLoop)
     for (std::uint8_t e = 4; auto c : buffer) STF_ASSERT_EQ(e--, c);
 }
 
+STF_TEST(TestDataBuffer, ConstRangeForLoop)
+{
+    auto ConstFunc = [](const NetUtil::DataBuffer buffer)
+    {
+        unsigned sum{};
+        for (auto &c : buffer)
+        {
+            sum += c;
+        }
+        STF_ASSERT_EQ(10, sum);
+    };
+
+    NetUtil::DataBuffer buffer(100);
+
+    buffer << std::uint8_t(4);
+    buffer << std::uint8_t(3);
+    buffer << std::uint8_t(2);
+    buffer << std::uint8_t(1);
+
+    STF_ASSERT_EQ(4, buffer.GetDataLength());
+
+    ConstFunc(buffer);
+}
+
 STF_TEST(TestDataBuffer, ExplicitIterator)
 {
     NetUtil::DataBuffer buffer(100);
@@ -2034,4 +2058,38 @@ STF_TEST(TestDataBufer, ChainedStream)
 
     data_buffer >> hello_string_read >> cafe_babe_read;
 
+}
+
+// Test non-const GetBufferPointer
+STF_TEST(TestDataBufer, GetBufferPointer)
+{
+    auto func = [](NetUtil::DataBuffer &data_buffer)
+    {
+        auto p = data_buffer.GetBufferPointer();
+        STF_ASSERT_NE('\0', *p);
+    };
+
+    NetUtil::DataBuffer data_buffer(64);
+    data_buffer << std::string("Hello");
+
+    STF_ASSERT_EQ(5, data_buffer.GetDataLength());
+
+    func(data_buffer);
+}
+
+// Test const GetBufferPointer
+STF_TEST(TestDataBufer, ConstGetBufferPointer)
+{
+    auto func = [](const NetUtil::DataBuffer &data_buffer)
+    {
+        auto p = data_buffer.GetBufferPointer();
+        STF_ASSERT_NE('\0', *p);
+    };
+
+    NetUtil::DataBuffer data_buffer(64);
+    data_buffer << std::string("Hello");
+
+    STF_ASSERT_EQ(5, data_buffer.GetDataLength());
+
+    func(data_buffer);
 }

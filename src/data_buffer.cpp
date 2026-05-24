@@ -389,7 +389,40 @@ void DataBuffer::FreeBuffer()
  *  Comments:
  *      None.
  */
-std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset) const
+std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset)
+{
+    // If there is no underlying buffer assigned, return nullptr
+    if (buffer.empty()) return nullptr;
+
+    // Ensure the request is not beyond the buffer length
+    if (offset >= buffer.size())
+    {
+        throw DataBufferException("Invalid buffer pointer requested");
+    }
+
+    return &buffer[offset];
+}
+
+/*
+ *  DataBuffer::GetBufferPointer()
+ *
+ *  Description:
+ *      Get a pointer to the underlying buffer and specified offset.
+ *
+ *  Parameters:
+ *      offset [in]
+ *          Offset into the buffer between zero and the size of the buffer.
+ *
+ *  Returns:
+ *      A pointer to the underlying buffer + the offset value.  An exception is
+ *      thrown if the requested offset is beyond the size of the underlying
+ *      buffer.  If, however, no buffer is assigned, nullptr is returned,
+ *      regardless of the offset value.
+ *
+ *  Comments:
+ *      None.
+ */
+const std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset) const
 {
     // If there is no underlying buffer assigned, return nullptr
     if (buffer.empty()) return nullptr;
@@ -421,7 +454,30 @@ std::uint8_t *DataBuffer::GetBufferPointer(std::size_t offset) const
  *  Comments:
  *      None.
  */
-std::span<std::uint8_t> DataBuffer::GetDataSpan() const
+std::span<std::uint8_t> DataBuffer::GetDataSpan()
+{
+    return buffer.subspan(read_position, data_length - read_position);
+}
+
+/*
+ *  DataBuffer::GetDataSpan()
+ *
+ *  Description:
+ *      Get a span over the data inside the buffer, paying respect to both the
+ *      the data length and the read position (i.e., a span over only the octets
+ *      that have not been read).  This is a subspan over the entire buffer.
+ *
+ *  Parameters:
+ *      None.
+ *
+ *  Returns:
+ *      A span over the octets in the DataBuffer that take into account the
+ *      data_length and read_position variables.
+ *
+ *  Comments:
+ *      None.
+ */
+std::span<const std::uint8_t> DataBuffer::GetDataSpan() const
 {
     return buffer.subspan(read_position, data_length - read_position);
 }
@@ -801,7 +857,7 @@ const std::uint8_t &DataBuffer::operator[](std::size_t index) const
  *  Comments:
  *      None.
  */
-std::span<std::uint8_t>::iterator DataBuffer::begin() const noexcept
+std::span<const std::uint8_t>::iterator DataBuffer::begin() const noexcept
 {
     return GetDataSpan().begin();
 }
@@ -823,7 +879,51 @@ std::span<std::uint8_t>::iterator DataBuffer::begin() const noexcept
  *  Comments:
  *      None.
  */
-std::span<std::uint8_t>::iterator DataBuffer::end() const noexcept
+std::span<const std::uint8_t>::iterator DataBuffer::end() const noexcept
+{
+    return GetDataSpan().end();
+}
+
+/*
+ *  DataBuffer::begin()
+ *
+ *  Description:
+ *      This function is used to facilitate passing the DataBuffer object
+ *      to functions that utilize iterators.  This allows the DataBuffer to
+ *      be passed to functions accepting spans or used in range-based for loops.
+ *
+ *  Parameters:
+ *      None.
+ *
+ *  Returns:
+ *      An span iterator for the underlying data buffer.
+ *
+ *  Comments:
+ *      None.
+ */
+std::span<std::uint8_t>::iterator DataBuffer::begin() noexcept
+{
+    return GetDataSpan().begin();
+}
+
+/*
+ *  DataBuffer::end()
+ *
+ *  Description:
+ *      This function is used to facilitate passing the DataBuffer object
+ *      to functions that utilize iterators.  This allows the DataBuffer to
+ *      be passed to functions accepting spans or used in range-based for loops.
+ *
+ *  Parameters:
+ *      None.
+ *
+ *  Returns:
+ *      An span iterator for the underlying data buffer.
+ *
+ *  Comments:
+ *      None.
+ */
+std::span<std::uint8_t>::iterator DataBuffer::end() noexcept
 {
     return GetDataSpan().end();
 }

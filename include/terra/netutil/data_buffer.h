@@ -116,8 +116,10 @@ class DataBuffer
         DataBuffer &operator=(const DataBuffer &other);
         DataBuffer &operator=(DataBuffer &&other) noexcept;
 
-        std::uint8_t *GetBufferPointer(std::size_t offset = 0) const;
-        std::span<std::uint8_t> GetDataSpan() const;
+        std::uint8_t *GetBufferPointer(std::size_t offset = 0);
+        const std::uint8_t *GetBufferPointer(std::size_t offset = 0) const;
+        std::span<std::uint8_t> GetDataSpan();
+        std::span<const std::uint8_t> GetDataSpan() const;
         std::size_t GetBufferSize() const;
         void SetBuffer(std::span<std::uint8_t> new_buffer,
                        std::size_t new_data_length = 0);
@@ -137,8 +139,11 @@ class DataBuffer
         std::uint8_t &operator[](std::size_t index);
         const std::uint8_t &operator[](std::size_t index) const;
 
-        std::span<std::uint8_t>::iterator begin() const noexcept;
-        std::span<std::uint8_t>::iterator end() const noexcept;
+        std::span<const std::uint8_t>::iterator begin() const noexcept;
+        std::span<const std::uint8_t>::iterator end() const noexcept;
+
+        std::span<std::uint8_t>::iterator begin() noexcept;
+        std::span<std::uint8_t>::iterator end() noexcept;
 
         void SetValue(std::span<const std::uint8_t> value, std::size_t offset);
         void SetValue(std::span<const char> value, std::size_t offset);
